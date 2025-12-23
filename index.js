@@ -10,9 +10,6 @@ const port = process.env.PORT ?? 3000
 
 app.use(express.json({ limit: '50mb' }))
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
 
 app.post('/compile', async (req, res) => {
   const { files, title = 'Love Game', memory = 67108864, compatibility = false, singleFile = true } = req.body
@@ -46,15 +43,30 @@ app.post('/compile', async (req, res) => {
 
     const projects = [{ input: inputPath, title }]
 
-    await compileLoveProjects(projects, { output: outputDir, memory, compatibility })
+    await compileLoveProjects(projects, { output: outputDir, memory, compatibility: singleFile ? true : compatibility })
 
     if (singleFile) {
       const loveJs = await fs.readFile(path.join(outputDir, 'love.js'), 'utf8')
-      const gameJs = await fs.readFile(path.join(outputDir, 'game.js'), 'utf8')
-      const gameData = await fs.readFile(path.join(outputDir, 'game.data'))
-      const gameDataBase64 = gameData.toString('base64')
+      const wasmData = await fs.readFile(path.join(outputDir, 'love.wasm'))
+      const wasmBase64 = wasmData.toString('base64')
 
-      const memoryMB = Math.ceil(memory / (1024 * 1024))
+      const gameFiles = []
+      const readSrcDir = async (dir, prefix = '') => {
+        const entries = await fs.readdir(dir, { withFileTypes: true })
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name)
+          const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name
+          if (entry.isDirectory()) {
+            await readSrcDir(fullPath, relativePath)
+          } else {
+            const content = await fs.readFile(fullPath)
+            gameFiles.push({ path: relativePath, data: content.toString('base64') })
+          }
+        }
+      }
+      await readSrcDir(inputPath)
+
+      const filesJson = JSON.stringify(gameFiles)
 
       const html = `<!DOCTYPE html>
 <html>
@@ -75,8 +87,12 @@ canvas { display: block; }
 <canvas id="canvas" oncontextmenu="event.preventDefault()" style="display:none;"></canvas>
 </div>
 <script>
+${loveJs}
+</script>
+<script>
 (function() {
-var GAME_DATA_BASE64 = "${gameDataBase64}";
+var GAME_FILES = ${filesJson};
+var WASM_BASE64 = "${wasmBase64}";
 function decodeBase64(base64) {
   var binary = atob(base64);
   var bytes = new Uint8Array(binary.length);
@@ -86,29 +102,38 @@ function decodeBase64(base64) {
 window.onerror = function(e, u, l) {
   document.getElementById('loading').innerHTML = 'Error: ' + e;
 };
-window.Module = {
-  TOTAL_MEMORY: 1024 * 1024 * ${memoryMB},
-  TOTAL_STACK: 1024 * 1024 * 5,
+var wasmBinary = decodeBase64(WASM_BASE64);
+Love({
   canvas: document.getElementById('canvas'),
-  setWindowTitle: function(t) { document.title = t; },
-  preRun: [function() {
-    var gameData = decodeBase64(GAME_DATA_BASE64);
-    Module.FS_createDataFile('/game.love', null, gameData, true, true, true);
+  arguments: ['./'],
+  wasmBinary: wasmBinary,
+  locateFile: function(path) {
+    if (path.endsWith('.wasm')) return 'data:application/wasm;base64,' + WASM_BASE64;
+    return path;
+  },
+  preRun: [function(Module) {
+    for (var i = 0; i < GAME_FILES.length; i++) {
+      var file = GAME_FILES[i];
+      var parts = file.path.split('/');
+      var dir = '/';
+      for (var j = 0; j < parts.length - 1; j++) {
+        var subdir = parts[j];
+        try { Module.FS_createPath(dir, subdir, true, true); } catch(e) {}
+        dir = dir + (dir === '/' ? '' : '/') + subdir;
+      }
+      var data = decodeBase64(file.data);
+      Module.FS_createDataFile('/' + parts.slice(0, -1).join('/'), parts[parts.length - 1], data, true, true, true);
+    }
   }],
   postRun: [function() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('canvas').style.display = 'block';
-    Module.canvas.focus();
-  }],
-  arguments: ['./game.love']
-};
+    document.getElementById('canvas').focus();
+  }]
+}).catch(function(err) {
+  document.getElementById('loading').innerHTML = 'Error: ' + err.message;
+});
 })();
-</script>
-<script>
-${loveJs}
-</script>
-<script>
-${gameJs}
 </script>
 </body>
 </html>`
@@ -140,6 +165,8 @@ ${gameJs}
     fs.remove(srcDir).catch(() => {})
   }
 })
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`)

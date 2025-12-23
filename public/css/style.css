@@ -1,0 +1,82 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background-color: #1e1e2e;
+    color: #cdd6f4;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    padding: 1rem;
+    background-color: #181825;
+    border-bottom: 1px solid #313244;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+header h1 {
+    position: absolute;
+    left: 1rem;
+}
+
+.run-btn {
+    background-color: #33d6a6;
+    color: #1e1e2e;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.run-btn:hover {
+    opacity: 0.9;
+}
+
+.save-btn {
+    background-color: #338eda;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 0.5rem;
+}
+
+.save-btn:hover {
+    opacity: 0.9;
+}
+
+header h1 {
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+}
+
+#editor-container {
+    flex: 1;
+    overflow: hidden;
+}
+
+.game {
+    width: 50%;
+    border: none;
+    border-left: 1px solid #313244;
+}
