@@ -1,0 +1,20 @@
+{
+  "name": "loveweb",
+  "version": "1.0.0",
+  "description": "WebIDE for Love2D",
+  "author": "Charmunk",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "fs-extra": "^11.3.3",
+    "klaw-sync": "^7.0.0",
+    "love.js": "^11.4.1",
+    "mustache": "^4.2.0",
+    "uuid": "^13.0.0"
+  }
+}
