@@ -8,13 +8,19 @@
 </head>
 <body>
     <header>
-        <h1>Love2D WebIDE</h1>
-        <button class="run-btn" onclick="run()">Run</button>
-        <button class="save-btn" onclick="save()">Save</button>
+        <div id="tabs"></div>
+        <div class="header-buttons">
+            <input type="file" id="file-upload" multiple accept=".lua,.wav,.mp3,.ogg,.jpg,.jpeg,.png,.bmp" onchange="handleUpload(event)" style="display:none">
+            <button class="run-btn" onclick="run()">Run</button>
+            <button class="stop-btn" onclick="stop()">Stop</button>
+            <button class="save-btn" onclick="save(true)">Save</button>
+            <button class="export-btn" onclick="showExportMenu(event)">Export</button>
+        </div>
     </header>
     <div class="main-content">
         <div id="editor-container"></div>
-        <iframe class="game" id="game"></iframe>
+        <div id="resizer"></div>
+        <iframe class="game" id="game" tabindex="0"></iframe>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>

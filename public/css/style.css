@@ -15,21 +15,68 @@ body {
 
 header {
     padding: 1rem;
+    padding-bottom: 0;
     background-color: #181825;
     border-bottom: 1px solid #313244;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
     position: relative;
 }
 
-header h1 {
-    position: absolute;
-    left: 1rem;
+#tabs {
+    display: flex;
+    gap: 0.25rem;
+    flex: 1;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.tab {
+    background-color: #313244;
+    color: #cdd6f4;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    transition: background-color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tab-close {
+    opacity: 0.5;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.tab-close:hover {
+    opacity: 1;
+}
+
+.tab:hover {
+    background-color: #45475a;
+}
+
+.tab.active {
+    background-color: #1e1e2e;
+    color: #cba6f7;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    margin-left: 1rem;
+    flex-shrink: 0;
 }
 
 .run-btn {
-    background-color: #33d6a6;
+    background-color: #a6e3a1;
     color: #1e1e2e;
     border: none;
     padding: 0.5rem 1.5rem;
@@ -43,25 +90,161 @@ header h1 {
     opacity: 0.9;
 }
 
-.save-btn {
-    background-color: #338eda;
+.stop-btn {
+    background-color: #f38ba8;
+    color: #1e1e2e;
     border: none;
     padding: 0.5rem 1.5rem;
     font-size: 1rem;
     font-weight: 600;
     border-radius: 4px;
     cursor: pointer;
-    margin-left: 0.5rem;
+}
+
+.stop-btn:hover {
+    opacity: 0.9;
+}
+
+.save-btn {
+    background-color: #89b4fa;
+    color: #1e1e2e;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
 .save-btn:hover {
     opacity: 0.9;
 }
 
-header h1 {
-    font-size: 1.25rem;
-    font-weight: 500;
+.export-btn {
+    background-color: #cba6f7;
+    color: #1e1e2e;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
 }
+
+.export-btn:hover {
+    opacity: 0.9;
+}
+
+.add-menu {
+    position: fixed;
+    background-color: #313244;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    padding: 0.25rem;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.add-menu button {
+    background-color: transparent;
+    color: #cdd6f4;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 2px;
+}
+
+.add-menu button:hover {
+    background-color: #45475a;
+}
+
+.export-menu {
+    min-width: 150px;
+}
+
+.folder {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    border: 1px solid #45475a;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    padding: 0.25rem;
+    padding-bottom: 0;
+    gap: 0.25rem;
+    background-color: #181825;
+}
+
+.folder-header {
+    background-color: #45475a;
+    color: #cdd6f4;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.folder-header:hover {
+    background-color: #585b70;
+}
+
+.folder-arrow {
+    font-size: 0.625rem;
+}
+
+.folder-contents {
+    display: flex;
+    flex-direction: row;
+    gap: 0.125rem;
+}
+
+.tab.nested {
+    border-radius: 4px 4px 0 0;
+}
+
+.root-drop {
+    width: 0.5rem;
+    align-self: stretch;
+}
+
+.root-drop:empty {
+    min-height: 1rem;
+}
+
+.media-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background-color: #1e1e2e;
+    color: #cdd6f4;
+}
+
+.media-preview img {
+    max-width: 100%;
+    max-height: 80%;
+    object-fit: contain;
+}
+
+.media-preview audio {
+    margin-bottom: 1rem;
+}
+
+.media-preview p {
+    font-size: 0.875rem;
+    color: #8492a6;
+}
+
+
 
 .main-content {
     flex: 1;
@@ -73,10 +256,25 @@ header h1 {
 #editor-container {
     flex: 1;
     overflow: hidden;
+    position: relative;
+    min-width: 100px;
+}
+
+#resizer {
+    width: 6px;
+    background-color: #313244;
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background-color 0.15s;
+}
+
+#resizer:hover,
+#resizer.dragging {
+    background-color: #cba6f7;
 }
 
 .game {
-    width: 50%;
+    width: 40%;
+    min-width: 100px;
     border: none;
-    border-left: 1px solid #313244;
 }

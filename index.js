@@ -77,7 +77,7 @@ app.post('/compile', async (req, res) => {
 <style>
 html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #1e1e2e; overflow: hidden; }
 #container { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
-canvas { display: block; }
+canvas { display: block; transform-origin: center center; }
 #loading { color: #cdd6f4; font-family: sans-serif; font-size: 24px; text-align: center; }
 </style>
 </head>
@@ -127,8 +127,21 @@ Love({
   }],
   postRun: [function() {
     document.getElementById('loading').style.display = 'none';
-    document.getElementById('canvas').style.display = 'block';
-    document.getElementById('canvas').focus();
+    var canvas = document.getElementById('canvas');
+    canvas.style.display = 'block';
+    canvas.focus();
+    function scaleCanvas() {
+      var container = document.getElementById('container');
+      var cw = container.clientWidth;
+      var ch = container.clientHeight;
+      var canvasW = canvas.width;
+      var canvasH = canvas.height;
+      var scale = Math.min(cw / canvasW, ch / canvasH, 1);
+      canvas.style.transform = 'scale(' + scale + ')';
+    }
+    scaleCanvas();
+    window.addEventListener('resize', scaleCanvas);
+    new ResizeObserver(scaleCanvas).observe(document.getElementById('container'));
   }]
 }).catch(function(err) {
   document.getElementById('loading').innerHTML = 'Error: ' + err.message;
@@ -163,6 +176,57 @@ Love({
   } finally {
     fs.remove(outputDir).catch(() => {})
     fs.remove(srcDir).catch(() => {})
+  }
+})
+
+app.post('/export', async (req, res) => {
+  const { files, title = 'Love Game' } = req.body
+
+  if (!Array.isArray(files) || files.length === 0) {
+    return res.status(400).json({ error: 'files must be a non-empty array' })
+  }
+
+  const srcDir = path.join(os.tmpdir(), `loveweb-src-${uuidv4()}`)
+  const loveFile = path.join(os.tmpdir(), `${uuidv4()}.love`)
+
+  try {
+    const isSourceFiles = typeof files[0] === 'object' && files[0].path && files[0].content
+
+    if (!isSourceFiles) {
+      return res.status(400).json({ error: 'files must be an array of {path, content} objects' })
+    }
+
+    await fs.mkdirs(srcDir)
+    for (const file of files) {
+      const filePath = path.join(srcDir, file.path)
+      await fs.mkdirs(path.dirname(filePath))
+      const content = file.content.startsWith('data:')
+        ? Buffer.from(file.content.split(',')[1], 'base64')
+        : Buffer.from(file.content, 'base64')
+      await fs.writeFile(filePath, content)
+    }
+
+    const archiver = require('archiver')
+    const output = fs.createWriteStream(loveFile)
+    const archive = archiver('zip', { zlib: { level: 9 } })
+
+    await new Promise((resolve, reject) => {
+      output.on('close', resolve)
+      archive.on('error', reject)
+      archive.pipe(output)
+      archive.directory(srcDir, false)
+      archive.finalize()
+    })
+
+    const loveData = await fs.readFile(loveFile)
+    res.setHeader('Content-Type', 'application/zip')
+    res.setHeader('Content-Disposition', `attachment; filename="${title}.love"`)
+    res.send(loveData)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  } finally {
+    fs.remove(srcDir).catch(() => {})
+    fs.remove(loveFile).catch(() => {})
   }
 })
 
