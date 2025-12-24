@@ -98,7 +98,7 @@ window.onerror = function(e, u, l) {
 
 (async function() {
   try {
-    var baseUrl = '${req.protocol}://${req.get('host')}';
+    var baseUrl = '${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}';
     
     var [loveScript, wasmBinary] = await Promise.all([
       fetch(baseUrl + '/love.js').then(r => r.text()),
