@@ -1,4 +1,5 @@
 const express = require('express')
+const compression = require('compression')
 const fs = require('fs-extra')
 const path = require('path')
 const os = require('os')
@@ -8,6 +9,7 @@ const app = express()
 require('dotenv').config()
 const port = process.env.PORT ?? 3000
 
+app.use(compression())
 app.use(express.json({ limit: '50mb' }))
 
 
@@ -46,10 +48,6 @@ app.post('/compile', async (req, res) => {
     await compileLoveProjects(projects, { output: outputDir, memory, compatibility: singleFile ? true : compatibility })
 
     if (singleFile) {
-      const loveJs = await fs.readFile(path.join(outputDir, 'love.js'), 'utf8')
-      const wasmData = await fs.readFile(path.join(outputDir, 'love.wasm'))
-      const wasmBase64 = wasmData.toString('base64')
-
       const gameFiles = []
       const readSrcDir = async (dir, prefix = '') => {
         const entries = await fs.readdir(dir, { withFileTypes: true })
@@ -87,12 +85,7 @@ canvas { display: block; transform-origin: center center; }
 <canvas id="canvas" oncontextmenu="event.preventDefault()" style="display:none;"></canvas>
 </div>
 <script>
-${loveJs}
-</script>
-<script>
-(function() {
 var GAME_FILES = ${filesJson};
-var WASM_BASE64 = "${wasmBase64}";
 function decodeBase64(base64) {
   var binary = atob(base64);
   var bytes = new Uint8Array(binary.length);
@@ -102,50 +95,66 @@ function decodeBase64(base64) {
 window.onerror = function(e, u, l) {
   document.getElementById('loading').innerHTML = 'Error: ' + e;
 };
-var wasmBinary = decodeBase64(WASM_BASE64);
-Love({
-  canvas: document.getElementById('canvas'),
-  arguments: ['./'],
-  wasmBinary: wasmBinary,
-  locateFile: function(path) {
-    if (path.endsWith('.wasm')) return 'data:application/wasm;base64,' + WASM_BASE64;
-    return path;
-  },
-  preRun: [function(Module) {
-    for (var i = 0; i < GAME_FILES.length; i++) {
-      var file = GAME_FILES[i];
-      var parts = file.path.split('/');
-      var dir = '/';
-      for (var j = 0; j < parts.length - 1; j++) {
-        var subdir = parts[j];
-        try { Module.FS_createPath(dir, subdir, true, true); } catch(e) {}
-        dir = dir + (dir === '/' ? '' : '/') + subdir;
-      }
-      var data = decodeBase64(file.data);
-      Module.FS_createDataFile('/' + parts.slice(0, -1).join('/'), parts[parts.length - 1], data, true, true, true);
-    }
-  }],
-  postRun: [function() {
-    document.getElementById('loading').style.display = 'none';
-    var canvas = document.getElementById('canvas');
-    canvas.style.display = 'block';
-    canvas.focus();
-    function scaleCanvas() {
-      var container = document.getElementById('container');
-      var cw = container.clientWidth;
-      var ch = container.clientHeight;
-      var canvasW = canvas.width;
-      var canvasH = canvas.height;
-      var scale = Math.min(cw / canvasW, ch / canvasH, 1);
-      canvas.style.transform = 'scale(' + scale + ')';
-    }
-    scaleCanvas();
-    window.addEventListener('resize', scaleCanvas);
-    new ResizeObserver(scaleCanvas).observe(document.getElementById('container'));
-  }]
-}).catch(function(err) {
-  document.getElementById('loading').innerHTML = 'Error: ' + err.message;
-});
+
+(async function() {
+  try {
+    var baseUrl = '${req.protocol}://${req.get('host')}';
+    
+    var [loveScript, wasmBinary] = await Promise.all([
+      fetch(baseUrl + '/love.js').then(r => r.text()),
+      fetch(baseUrl + '/love.wasm').then(r => r.arrayBuffer()).then(b => new Uint8Array(b))
+    ]);
+    
+    var script = document.createElement('script');
+    script.textContent = loveScript;
+    document.head.appendChild(script);
+    
+    Love({
+      canvas: document.getElementById('canvas'),
+      arguments: ['./'],
+      wasmBinary: wasmBinary,
+      locateFile: function(path) {
+        if (path.endsWith('.wasm')) return baseUrl + '/love.wasm';
+        return path;
+      },
+      preRun: [function(Module) {
+        for (var i = 0; i < GAME_FILES.length; i++) {
+          var file = GAME_FILES[i];
+          var parts = file.path.split('/');
+          var dir = '/';
+          for (var j = 0; j < parts.length - 1; j++) {
+            var subdir = parts[j];
+            try { Module.FS_createPath(dir, subdir, true, true); } catch(e) {}
+            dir = dir + (dir === '/' ? '' : '/') + subdir;
+          }
+          var data = decodeBase64(file.data);
+          Module.FS_createDataFile('/' + parts.slice(0, -1).join('/'), parts[parts.length - 1], data, true, true, true);
+        }
+      }],
+      postRun: [function() {
+        document.getElementById('loading').style.display = 'none';
+        var canvas = document.getElementById('canvas');
+        canvas.style.display = 'block';
+        canvas.focus();
+        function scaleCanvas() {
+          var container = document.getElementById('container');
+          var cw = container.clientWidth;
+          var ch = container.clientHeight;
+          var canvasW = canvas.width;
+          var canvasH = canvas.height;
+          var scale = Math.min(cw / canvasW, ch / canvasH, 1);
+          canvas.style.transform = 'scale(' + scale + ')';
+        }
+        scaleCanvas();
+        window.addEventListener('resize', scaleCanvas);
+        new ResizeObserver(scaleCanvas).observe(document.getElementById('container'));
+      }]
+    }).catch(function(err) {
+      document.getElementById('loading').innerHTML = 'Error: ' + err.message;
+    });
+  } catch(err) {
+    document.getElementById('loading').innerHTML = 'Error loading: ' + err.message;
+  }
 })();
 </script>
 </body>
@@ -231,6 +240,18 @@ app.post('/export', async (req, res) => {
 })
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+const loveAssetsPath = path.join(__dirname, 'node_modules/love.js/src/compat')
+app.get('/love.wasm', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  res.setHeader('Content-Type', 'application/wasm')
+  res.sendFile(path.join(loveAssetsPath, 'love.wasm'))
+})
+app.get('/love.js', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  res.setHeader('Content-Type', 'application/javascript')
+  res.sendFile(path.join(loveAssetsPath, 'love.js'))
+})
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`)
