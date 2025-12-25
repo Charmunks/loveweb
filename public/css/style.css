@@ -243,3 +243,39 @@ header {
     min-width: 100px;
     border: none;
 }
+
+footer {
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    background-color: #181825;
+    border-top: 1px solid #313244;
+    color: #8492a6;
+    position: relative;
+}
+
+.footer-close {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #8492a6;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 0.25rem;
+}
+
+.footer-close:hover {
+    color: #cdd6f4;
+}
+
+footer a {
+    color: #89b4fa;
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
+}
