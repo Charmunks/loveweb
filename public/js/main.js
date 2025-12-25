@@ -447,8 +447,35 @@ async function exportAs(format) {
     }
 }
 
-function save(showAlert = false) {
-    const saveData = {
+function showSaveMenu(event) {
+    event.stopPropagation();
+    closeSaveMenu();
+    
+    const menu = document.createElement('div');
+    menu.className = 'add-menu save-menu';
+    menu.innerHTML = `
+        <button onclick="saveAs('browser')">Save to Browser</button>
+        <button onclick="saveAs('file')">Save to File</button>
+    `;
+    menu.onclick = (e) => e.stopPropagation();
+    
+    const btn = event.target;
+    const rect = btn.getBoundingClientRect();
+    menu.style.right = (window.innerWidth - rect.right) + 'px';
+    menu.style.top = rect.bottom + 'px';
+    
+    document.body.appendChild(menu);
+    document.addEventListener('click', closeSaveMenu);
+}
+
+function closeSaveMenu() {
+    const existing = document.querySelector('.save-menu');
+    if (existing) existing.remove();
+    document.removeEventListener('click', closeSaveMenu);
+}
+
+function getSaveData() {
+    return {
         tabs: tabs.map(tab => ({
             filename: tab.filename,
             folder: tab.folder,
@@ -459,8 +486,77 @@ function save(showAlert = false) {
         folders: folders,
         opentab: opentab
     };
+}
+
+function saveAs(target) {
+    closeSaveMenu();
+    const saveData = getSaveData();
+    
+    if (target === 'browser') {
+        localStorage.setItem('loveweb-project', JSON.stringify(saveData));
+        alert('Saved to browser!');
+    } else if (target === 'file') {
+        const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'loveweb-project.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+}
+
+function save(showAlert = false) {
+    const saveData = getSaveData();
     localStorage.setItem('loveweb-project', JSON.stringify(saveData));
     if (showAlert) alert('Saved!');
+}
+
+function loadFromFile() {
+    document.getElementById('load-file').click();
+}
+
+function handleLoadFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            loadProjectData(data);
+            alert('Project loaded!');
+        } catch (err) {
+            alert('Failed to load project: Invalid JSON file');
+            console.error(err);
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+function loadProjectData(data) {
+    tabs.forEach(tab => {
+        if (tab.container) tab.container.remove();
+    });
+    
+    if (data.tabs && data.tabs.length > 0) {
+        tabs = data.tabs.map(t => ({
+            filename: t.filename,
+            folder: t.folder,
+            type: t.type,
+            content: t.content || '',
+            dataUrl: t.dataUrl,
+            editor: null,
+            container: null
+        }));
+        folders = data.folders || [];
+        opentab = data.opentab || 0;
+        if (opentab >= tabs.length) opentab = 0;
+        
+        renderTabs();
+        createTabContainer(opentab);
+    }
 }
 
 function load() {

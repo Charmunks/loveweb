@@ -13,7 +13,9 @@
             <input type="file" id="file-upload" multiple accept=".lua,.wav,.mp3,.ogg,.jpg,.jpeg,.png,.bmp" onchange="handleUpload(event)" style="display:none">
             <button class="run-btn" onclick="run()">Run</button>
             <button class="stop-btn" onclick="stop()">Stop</button>
-            <button class="save-btn" onclick="save(true)">Save</button>
+            <button class="save-btn" onclick="showSaveMenu(event)">Save</button>
+            <button class="load-btn" onclick="loadFromFile()">Load</button>
+            <input type="file" id="load-file" accept=".json" onchange="handleLoadFile(event)" style="display:none">
             <button class="export-btn" onclick="showExportMenu(event)">Export</button>
         </div>
     </header>

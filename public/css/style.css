@@ -75,64 +75,29 @@ header {
     flex-shrink: 0;
 }
 
-.run-btn {
-    background-color: #a6e3a1;
-    color: #1e1e2e;
-    border: none;
-    padding: 0.5rem 1.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.run-btn:hover {
-    opacity: 0.9;
-}
-
-.stop-btn {
-    background-color: #f38ba8;
-    color: #1e1e2e;
-    border: none;
-    padding: 0.5rem 1.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.stop-btn:hover {
-    opacity: 0.9;
-}
-
-.save-btn {
-    background-color: #89b4fa;
-    color: #1e1e2e;
-    border: none;
-    padding: 0.5rem 1.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.save-btn:hover {
-    opacity: 0.9;
-}
-
+.run-btn,
+.stop-btn,
+.save-btn,
+.load-btn,
 .export-btn {
-    background-color: #cba6f7;
-    color: #1e1e2e;
-    border: none;
+    background-color: #313244;
+    color: #89b4fa;
+    border: 1px solid #45475a;
     padding: 0.5rem 1.5rem;
     font-size: 1rem;
     font-weight: 600;
     border-radius: 4px;
     cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
 }
 
+.run-btn:hover,
+.stop-btn:hover,
+.save-btn:hover,
+.load-btn:hover,
 .export-btn:hover {
-    opacity: 0.9;
+    background-color: #45475a;
+    border-color: #89b4fa;
 }
 
 .add-menu {
