@@ -30,11 +30,13 @@ const loveAssetsPath = path.join(__dirname, 'node_modules/love.js/src/compat')
 app.get('/love.wasm', (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   res.setHeader('Content-Type', 'application/wasm')
+  res.setHeader('Access-Control-Allow-Origin', '*')
   res.sendFile(path.join(loveAssetsPath, 'love.wasm'))
 })
 app.get('/love.js', (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   res.setHeader('Content-Type', 'application/javascript')
+  res.setHeader('Access-Control-Allow-Origin', '*')
   res.sendFile(path.join(loveAssetsPath, 'love.js'))
 })
 
