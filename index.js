@@ -221,6 +221,11 @@ app.post('/upload', async (req, res) => {
     return res.status(400).json({ error: 'files must be a non-empty array' })
   }
 
+  const existingGame = await getGameByName(gameName)
+  if (existingGame) {
+    return res.status(400).json({ error: 'A game with this name already exists' })
+  }
+
   const outputDir = path.join(os.tmpdir(), `loveweb-${uuidv4()}`)
   const srcDir = path.join(os.tmpdir(), `loveweb-src-${uuidv4()}`)
 
