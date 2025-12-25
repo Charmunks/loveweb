@@ -5,7 +5,7 @@
 [![Hack Club Badge](https://img.shields.io/badge/Hack%20Club-EC3750?logo=Hack%20Club&logoColor=white)](https://flavortown.hackclub.com/projects/1403) ![Lua Badge](https://img.shields.io/badge/Lua-%232C2D72.svg?logo=lua&logoColor=white)
 
 
-WebIDE for the Love2D game framework for Lua
+Web based IDE for the Love2D game framework
 </div>
 
 ***
