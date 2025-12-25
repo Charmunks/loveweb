@@ -9,7 +9,7 @@ WebIDE for the Love2D game framework for Lua
 </div>
 
 ***
-This project allows you to build and test Love2D projects, completely from a web browser. When you are done, simply press export, and in one click export as a playable url, html file, or .love file.
+Build and test Love2D projects entirely in your browser. Export with one click as a playable URL, HTML file, or `.love` file.
 
 You can access it [here](https://love.ivie.codes/). We provide an [example project file](https://love.ivie.codes/example-project.json) if you want to test it out.
 
