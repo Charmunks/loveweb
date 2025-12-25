@@ -383,6 +383,7 @@ function showExportMenu(event) {
     const menu = document.createElement('div');
     menu.className = 'add-menu export-menu';
     menu.innerHTML = `
+        <button onclick="exportAs('share')">Export as Sharable Link</button>
         <button onclick="exportAs('html')">Export as HTML</button>
         <button onclick="exportAs('love')">Export as .love</button>
     `;
@@ -418,6 +419,26 @@ async function exportAs(format) {
         
         return { path, content };
     });
+
+    if (format === 'share') {
+        const gameName = prompt('Enter a name for your game:');
+        if (!gameName) return;
+
+        const response = await fetch('/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files, gameName, title: "Love2D WebIDE" }),
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            const shareUrl = `${window.location.origin}/play/${encodeURIComponent(gameName)}`;
+            prompt('Your sharable link:', shareUrl);
+        } else {
+            alert('Upload failed: ' + (result.error || 'Unknown error'));
+        }
+        return;
+    }
 
     const isLove = format === 'love';
     const endpoint = isLove ? '/export' : '/compile';

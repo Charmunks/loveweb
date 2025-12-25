@@ -5,6 +5,7 @@ const path = require('path')
 const os = require('os')
 const { v4: uuidv4 } = require('uuid')
 const { compileLoveProjects } = require('./love.utils')
+const { addGame, getGameByName } = require('./db.utils')
 const app = express()
 require('dotenv').config()
 const port = process.env.PORT ?? 3000
@@ -210,7 +211,11 @@ window.onerror = function(e, u, l) {
 })
 
 app.post('/upload', async (req, res) => {
-  const { files, title = 'Love Game', memory = 67108864, compatibility = false } = req.body
+  const { files, gameName, title = 'Love Game', memory = 67108864, compatibility = false } = req.body
+
+  if (!gameName || typeof gameName !== 'string') {
+    return res.status(400).json({ error: 'gameName is required' })
+  }
 
   if (!Array.isArray(files) || files.length === 0) {
     return res.status(400).json({ error: 'files must be a non-empty array' })
@@ -372,7 +377,12 @@ window.onerror = function(e, u, l) {
     const cdnResult = await uploadToCDN([tempUrl])
     await fs.remove(tempHtmlPath).catch(() => {})
 
-    res.json({ success: true, url: cdnResult.files[0].deployedUrl })
+    const cdnLink = cdnResult.files[0].deployedUrl
+    const authorIp = req.headers['x-forwarded-for']?.split(',')[0] || req.ip
+
+    await addGame(gameName, authorIp, cdnLink)
+
+    res.json({ success: true })
   } catch (err) {
     console.error('Upload error:', err)
     res.status(500).json({ error: err.message })
@@ -430,6 +440,18 @@ app.post('/export', async (req, res) => {
   } finally {
     fs.remove(srcDir).catch(() => {})
     fs.remove(loveFile).catch(() => {})
+  }
+})
+
+app.get('/play/:gameName', async (req, res) => {
+  try {
+    const game = await getGameByName(req.params.gameName)
+    if (!game) {
+      return res.status(404).send('Game not found')
+    }
+    res.redirect(game.cdn_link)
+  } catch (err) {
+    res.status(500).send('Error loading game')
   }
 })
 
