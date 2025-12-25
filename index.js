@@ -449,7 +449,10 @@ app.get('/play/:gameName', async (req, res) => {
     if (!game) {
       return res.status(404).send('Game not found')
     }
-    res.redirect(game.cdn_link)
+    const response = await fetch(game.cdn_link)
+    const html = await response.text()
+    res.setHeader('Content-Type', 'text/html')
+    res.send(html)
   } catch (err) {
     res.status(500).send('Error loading game')
   }
