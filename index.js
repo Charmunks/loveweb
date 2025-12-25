@@ -1,5 +1,6 @@
 const express = require('express')
 const compression = require('compression')
+const rateLimit = require('express-rate-limit')
 const fs = require('fs-extra')
 const path = require('path')
 const os = require('os')
@@ -7,13 +8,37 @@ const { v4: uuidv4 } = require('uuid')
 const { compileLoveProjects } = require('./love.utils')
 const { addGame, getGameByName } = require('./db.utils')
 const app = express()
+app.set('trust proxy', 1)
 require('dotenv').config()
 const port = process.env.PORT ?? 3000
 const cdn = process.env.CDN_URL
 const cdnToken = process.env.CDN_KEY
 
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+})
+
 app.use(compression())
 app.use(express.json({ limit: '50mb' }))
+app.use(express.static(path.join(__dirname, 'public')))
+
+const loveAssetsPath = path.join(__dirname, 'node_modules/love.js/src/compat')
+app.get('/love.wasm', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  res.setHeader('Content-Type', 'application/wasm')
+  res.sendFile(path.join(loveAssetsPath, 'love.wasm'))
+})
+app.get('/love.js', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  res.setHeader('Content-Type', 'application/javascript')
+  res.sendFile(path.join(loveAssetsPath, 'love.js'))
+})
+
+app.use(apiLimiter)
 
 async function uploadToCDN(fileUrls) {
   const response = await fetch(cdn, {
@@ -461,20 +486,6 @@ app.get('/play/:gameName', async (req, res) => {
   } catch (err) {
     res.status(500).send('Error loading game')
   }
-})
-
-app.use(express.static(path.join(__dirname, 'public')));
-
-const loveAssetsPath = path.join(__dirname, 'node_modules/love.js/src/compat')
-app.get('/love.wasm', (req, res) => {
-  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-  res.setHeader('Content-Type', 'application/wasm')
-  res.sendFile(path.join(loveAssetsPath, 'love.wasm'))
-})
-app.get('/love.js', (req, res) => {
-  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-  res.setHeader('Content-Type', 'application/javascript')
-  res.sendFile(path.join(loveAssetsPath, 'love.js'))
 })
 
 app.listen(port, () => {
