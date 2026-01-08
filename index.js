@@ -26,6 +26,10 @@ app.use(compression())
 app.use(express.json({ limit: '50mb' }))
 app.use(express.static(path.join(__dirname, 'public')))
 
+app.get('/builder', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'builder.html'))
+})
+
 const loveAssetsPath = path.join(__dirname, 'node_modules/love.js/src/compat')
 app.get('/love.wasm', (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
@@ -472,6 +476,177 @@ app.post('/export', async (req, res) => {
   } finally {
     fs.remove(srcDir).catch(() => {})
     fs.remove(loveFile).catch(() => {})
+  }
+})
+
+const multer = require('multer')
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } })
+
+app.post('/compile-love', upload.single('lovefile'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No .love file uploaded' })
+  }
+
+  const { title = 'Love Game', output = 'html' } = req.body
+  const outputDir = path.join(os.tmpdir(), `loveweb-${uuidv4()}`)
+  const loveFilePath = path.join(os.tmpdir(), `${uuidv4()}.love`)
+
+  try {
+    await fs.writeFile(loveFilePath, req.file.buffer)
+
+    const AdmZip = require('adm-zip')
+    const zip = new AdmZip(req.file.buffer)
+    const entries = zip.getEntries()
+    const gameFiles = []
+
+    for (const entry of entries) {
+      if (!entry.isDirectory) {
+        const data = entry.getData()
+        gameFiles.push({ path: entry.entryName, data: data.toString('base64') })
+      }
+    }
+
+    const filesJson = JSON.stringify(gameFiles)
+    const baseUrl = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<style>
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #1e1e2e; overflow: hidden; }
+#container { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+canvas { display: block; transform-origin: center center; }
+#loading { color: #cdd6f4; font-family: sans-serif; font-size: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<div id="container">
+<div id="loading">Loading...</div>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" style="display:none;"></canvas>
+</div>
+<script>
+var GAME_FILES = ${filesJson};
+function decodeBase64(base64) {
+  var binary = atob(base64);
+  var bytes = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+window.onerror = function(e, u, l) {
+  document.getElementById('loading').innerHTML = 'Error: ' + e;
+};
+
+(async function() {
+  try {
+    var baseUrl = '${baseUrl}';
+    
+    var [loveScript, wasmBinary] = await Promise.all([
+      fetch(baseUrl + '/love.js').then(r => r.text()),
+      fetch(baseUrl + '/love.wasm').then(r => r.arrayBuffer()).then(b => new Uint8Array(b))
+    ]);
+    
+    var script = document.createElement('script');
+    script.textContent = loveScript;
+    document.head.appendChild(script);
+    
+    Love({
+      canvas: document.getElementById('canvas'),
+      arguments: ['./'],
+      wasmBinary: wasmBinary,
+      locateFile: function(path) {
+        if (path.endsWith('.wasm')) return baseUrl + '/love.wasm';
+        return path;
+      },
+      preRun: [function(Module) {
+        for (var i = 0; i < GAME_FILES.length; i++) {
+          var file = GAME_FILES[i];
+          var parts = file.path.split('/');
+          var dir = '/';
+          for (var j = 0; j < parts.length - 1; j++) {
+            var subdir = parts[j];
+            try { Module.FS_createPath(dir, subdir, true, true); } catch(e) {}
+            dir = dir + (dir === '/' ? '' : '/') + subdir;
+          }
+          var data = decodeBase64(file.data);
+          Module.FS_createDataFile('/' + parts.slice(0, -1).join('/'), parts[parts.length - 1], data, true, true, true);
+        }
+      }],
+      postRun: [function() {
+        document.getElementById('loading').style.display = 'none';
+        var canvas = document.getElementById('canvas');
+        canvas.style.display = 'block';
+        canvas.focus();
+        function scaleCanvas() {
+          var container = document.getElementById('container');
+          var cw = container.clientWidth;
+          var ch = container.clientHeight;
+          var canvasW = canvas.width;
+          var canvasH = canvas.height;
+          var scale = Math.min(cw / canvasW, ch / canvasH, 1);
+          canvas.style.transform = 'scale(' + scale + ')';
+        }
+        scaleCanvas();
+        window.addEventListener('resize', scaleCanvas);
+        new ResizeObserver(scaleCanvas).observe(document.getElementById('container'));
+      }]
+    }).catch(function(err) {
+      document.getElementById('loading').innerHTML = 'Error: ' + err.message;
+    });
+  } catch(err) {
+    document.getElementById('loading').innerHTML = 'Error loading: ' + err.message;
+  }
+})();
+</script>
+</body>
+</html>`
+
+    if (output === 'link') {
+      const gameName = req.body.gameName
+      if (!gameName || typeof gameName !== 'string') {
+        return res.status(400).json({ error: 'gameName is required for link output' })
+      }
+
+      const existingGame = await getGameByName(gameName)
+      if (existingGame) {
+        return res.status(400).json({ error: 'A game with this name already exists' })
+      }
+
+      const tempId = uuidv4()
+      const tempHtmlPath = path.join(os.tmpdir(), `${tempId}.html`)
+      await fs.writeFile(tempHtmlPath, html)
+
+      const tempUrl = `${baseUrl}/temp/${tempId}.html`
+
+      app.get(`/temp/${tempId}.html`, (tempReq, tempRes) => {
+        tempRes.setHeader('Content-Type', 'text/html')
+        tempRes.sendFile(tempHtmlPath, async () => {
+          await fs.remove(tempHtmlPath).catch(() => {})
+        })
+      })
+
+      const cdnResult = await uploadToCDN([tempUrl])
+      await fs.remove(tempHtmlPath).catch(() => {})
+
+      const cdnLink = cdnResult.files[0].deployedUrl
+      const authorIp = req.headers['x-forwarded-for']?.split(',')[0] || req.ip
+
+      await addGame(gameName, authorIp, cdnLink)
+
+      res.json({ success: true, playUrl: `/play/${gameName}` })
+    } else {
+      res.setHeader('Content-Type', 'text/html')
+      res.setHeader('Content-Disposition', `attachment; filename="${title}.html"`)
+      res.send(html)
+    }
+  } catch (err) {
+    console.error('Compile love error:', err)
+    res.status(500).json({ error: err.message })
+  } finally {
+    fs.remove(loveFilePath).catch(() => {})
+    fs.remove(outputDir).catch(() => {})
   }
 })
 

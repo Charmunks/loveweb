@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Love2D Builder</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .builder-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        h1 {
+            color: #cba6f7;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            color: #cdd6f4;
+            font-size: 0.875rem;
+        }
+
+        input[type="text"] {
+            background-color: #313244;
+            border: 1px solid #45475a;
+            color: #cdd6f4;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #89b4fa;
+        }
+
+        .upload-zone {
+            border: 2px dashed #45475a;
+            border-radius: 8px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: #89b4fa;
+            background-color: rgba(137, 180, 250, 0.05);
+        }
+
+        .upload-zone p {
+            color: #8492a6;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-zone .file-name {
+            color: #a6e3a1;
+            font-weight: 600;
+        }
+
+        .output-options {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .output-option {
+            flex: 1;
+            padding: 1rem;
+            background-color: #313244;
+            border: 2px solid #45475a;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: border-color 0.15s;
+        }
+
+        .output-option:hover {
+            border-color: #89b4fa;
+        }
+
+        .output-option.selected {
+            border-color: #cba6f7;
+            background-color: rgba(203, 166, 247, 0.1);
+        }
+
+        .output-option h3 {
+            color: #cdd6f4;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .output-option p {
+            color: #8492a6;
+            font-size: 0.75rem;
+        }
+
+        .submit-btn {
+            background-color: #cba6f7;
+            color: #1e1e2e;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .submit-btn:hover {
+            background-color: #b4befe;
+        }
+
+        .submit-btn:disabled {
+            background-color: #45475a;
+            color: #8492a6;
+            cursor: not-allowed;
+        }
+
+        .result {
+            padding: 1rem;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .result.success {
+            background-color: rgba(166, 227, 161, 0.1);
+            border: 1px solid #a6e3a1;
+            display: block;
+        }
+
+        .result.error {
+            background-color: rgba(243, 139, 168, 0.1);
+            border: 1px solid #f38ba8;
+            display: block;
+        }
+
+        .result a {
+            color: #89b4fa;
+            text-decoration: none;
+        }
+
+        .result a:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            color: #8492a6;
+        }
+
+        .loading.visible {
+            display: flex;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #45475a;
+            border-top-color: #cba6f7;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .back-link {
+            text-align: center;
+        }
+
+        .back-link a {
+            color: #89b4fa;
+            text-decoration: none;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div id="tabs"></div>
+        <div class="header-buttons">
+            <a href="/" class="run-btn" style="text-decoration: none;">WebIDE</a>
+        </div>
+    </header>
+
+    <div class="builder-container">
+        <h1>Build Your .love Game</h1>
+        <p style="text-align: center; color: #8492a6;">Upload a .love file to generate a playable web link or downloadable HTML</p>
+
+        <div class="form-group">
+            <label for="title">Game Title</label>
+            <input type="text" id="title" placeholder="My Love Game">
+        </div>
+
+        <div class="upload-zone" id="upload-zone">
+            <input type="file" id="lovefile" accept=".love" style="display: none;">
+            <p>Drop your .love file here or click to browse</p>
+            <p class="file-name" id="file-name"></p>
+        </div>
+
+        <div class="form-group">
+            <label>Output Type</label>
+            <div class="output-options">
+                <div class="output-option selected" data-output="html" onclick="selectOutput('html')">
+                    <h3>Download HTML</h3>
+                    <p>Self-contained HTML file you can host anywhere</p>
+                </div>
+                <div class="output-option" data-output="link" onclick="selectOutput('link')">
+                    <h3>Playable Link</h3>
+                    <p>Hosted on our servers with a shareable URL</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group" id="game-name-group" style="display: none;">
+            <label for="game-name">Game Name (for URL)</label>
+            <input type="text" id="game-name" placeholder="my-awesome-game">
+            <p style="color: #8492a6; font-size: 0.75rem;">Your game will be available at /play/your-game-name</p>
+        </div>
+
+        <button class="submit-btn" id="submit-btn" onclick="build()" disabled>Upload a .love file first</button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <span>Building your game...</span>
+        </div>
+
+        <div class="result" id="result"></div>
+
+        <div class="back-link">
+            <a href="/">← Back to WebIDE</a>
+        </div>
+    </div>
+
+    <footer id="footer">
+        Made with LÖVE by <a href="https://ivie.codes">Charmunk.</a> We are <a href="https://github.com/Charmunks/loveweb" target="_blank">open source!</a>
+        <button class="footer-close" onclick="document.getElementById('footer').remove()">×</button>
+    </footer>
+
+    <script>
+        let selectedFile = null
+        let outputType = 'html'
+
+        const uploadZone = document.getElementById('upload-zone')
+        const fileInput = document.getElementById('lovefile')
+        const fileName = document.getElementById('file-name')
+        const submitBtn = document.getElementById('submit-btn')
+        const gameNameGroup = document.getElementById('game-name-group')
+        const loading = document.getElementById('loading')
+        const result = document.getElementById('result')
+
+        uploadZone.addEventListener('click', () => fileInput.click())
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault()
+            uploadZone.classList.add('dragover')
+        })
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover')
+        })
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault()
+            uploadZone.classList.remove('dragover')
+            const file = e.dataTransfer.files[0]
+            if (file && file.name.endsWith('.love')) {
+                handleFile(file)
+            }
+        })
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                handleFile(e.target.files[0])
+            }
+        })
+
+        function handleFile(file) {
+            selectedFile = file
+            fileName.textContent = file.name
+            submitBtn.disabled = false
+            submitBtn.textContent = 'Build Game'
+        }
+
+        function selectOutput(type) {
+            outputType = type
+            document.querySelectorAll('.output-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.dataset.output === type)
+            })
+            gameNameGroup.style.display = type === 'link' ? 'block' : 'none'
+        }
+
+        async function build() {
+            if (!selectedFile) return
+
+            const title = document.getElementById('title').value || 'Love Game'
+            const gameName = document.getElementById('game-name').value
+
+            if (outputType === 'link' && !gameName) {
+                result.className = 'result error'
+                result.textContent = 'Please enter a game name for the playable link'
+                return
+            }
+
+            submitBtn.disabled = true
+            loading.classList.add('visible')
+            result.className = 'result'
+            result.style.display = 'none'
+
+            const formData = new FormData()
+            formData.append('lovefile', selectedFile)
+            formData.append('title', title)
+            formData.append('output', outputType)
+            if (outputType === 'link') {
+                formData.append('gameName', gameName)
+            }
+
+            try {
+                const response = await fetch('/compile-love', {
+                    method: 'POST',
+                    body: formData
+                })
+
+                if (outputType === 'html') {
+                    if (!response.ok) {
+                        const err = await response.json()
+                        throw new Error(err.error || 'Build failed')
+                    }
+                    const blob = await response.blob()
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `${title}.html`
+                    a.click()
+                    URL.revokeObjectURL(url)
+
+                    result.className = 'result success'
+                    result.textContent = 'Download started!'
+                } else {
+                    const data = await response.json()
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Build failed')
+                    }
+                    const fullUrl = window.location.origin + data.playUrl
+                    result.className = 'result success'
+                    result.innerHTML = `
+                        <p style="margin-bottom: 0.5rem; color: #a6e3a1; font-weight: 600;">Done! Your game is live.</p>
+                        <p style="margin-bottom: 0.5rem;">Playable link:</p>
+                        <input type="text" value="${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 0.5rem; background: #313244; border: 1px solid #45475a; color: #cdd6f4; border-radius: 4px; margin-bottom: 0.5rem;">
+                        <p><a href="${data.playUrl}" target="_blank">Open game →</a></p>
+                    `
+                }
+            } catch (err) {
+                result.className = 'result error'
+                result.textContent = err.message
+            } finally {
+                submitBtn.disabled = false
+                loading.classList.remove('visible')
+            }
+        }
+    </script>
+</body>
+</html>
